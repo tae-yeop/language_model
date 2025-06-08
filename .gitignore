@@ -12,7 +12,7 @@ wandb
 weights
 temp
 checkpoints
-data
+datasets
 runs
 output
 output*
