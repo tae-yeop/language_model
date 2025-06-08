@@ -1,0 +1,12 @@
+transformers
+datasets
+tiktoken
+wandb
+tqdm
+trl
+peft
+tokenizers
+timm
+safetensors
+sentencepiece
+lightning

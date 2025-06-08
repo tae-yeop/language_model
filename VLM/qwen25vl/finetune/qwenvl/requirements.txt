@@ -1,0 +1,4 @@
+torchcodec
+flash_attn
+# 	apt install libavutil-dev
+# apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev

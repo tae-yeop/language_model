@@ -1,8 +1,11 @@
+*.mp4
 *.onnx
 *.pt
 *.pth
 *.h7
 *.out
+*.safetensors
+*.ckpt
 trainable_params.txt
 logs
 wandb
