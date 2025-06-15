@@ -75,6 +75,15 @@ $$
 
 목적식은 다음과 같이 구성된다.확률 분포에 대해 비교를 하게 되므로 CE loss가 기본으로 쓰임.
 
+$$
+\mathcal{D} = \{x^i\}_{i=1}^N \\
+
+\hat{\theta} = \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \log P(x_{1:n}^i; \theta) \\
+
+= \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \sum_{j=1}^{n} \log P(x_j^i | x_{<j}^i; \theta) \\
+
+\text{where } x_{1:n} = \{x_1, \dots, x_n\}.
+$$
 
 이렇게 포뮬레이션하는게 말이 되는 이유는 사람도 머릿속에 언어모델이 비슷하게 동작할 것이라고 생각되기 때문. 단어와 단어 사이의 확률이 우리도 모르게 학습되어 있음. 대화를 하다가 정확하게 듣지 못하여도 대화에 지장이 없음. 음성 인식과 달리 잘 동작하는건 단어와 단어 사이의 출현 빈도(확률)에 대한 이해가 있기 때문.
 
@@ -94,6 +103,13 @@ $$
 
 모달리티마다 최소 단위가 설정되어야 함. 이미지의 경우 픽셀인데 자연어는 토큰이라고 할 수 있음. 언어 모델에 성능을 미치는 부분임. BERT 등 논문을 보면 vocab size와 tokenizing에 따라 성능이 바뀐다고 함. 언어 뿐만 아니라 구두점, 특수 기호 등도 포함됨.
 
+이런 과정이 없으면 문제가 되는 상황이 생김. 코퍼스에 출현 빈도가 낮아짐
+
+- 입력 데이터에 OoV가 발생 ⇒ <UNK> 토큰으로 치환하여 모델에 입력
+    - “나는 학교에 가서 밥을 먹었다.” ⇒ “나 는 <UNK> 에 가 서 <UNK> 을 먹 었 다 .” 특히 언어모델은 이전 단어들을 기반으로 다음 단어를 예측 ⇒ NLG에서 치명적
+
+
+
 토큰 방식은 세 가지 : 1. 전체 단어 기반 2. 문자 기반 3. 부분어(서브워드) 기반이 있음
 
 1 Full Word 방식은 공백과 구두점 기준으로 분할
@@ -112,12 +128,16 @@ $$
 
 3 Subword-Based 방식
 
-하나의 단어를 의미있는 작은 단어 단위로 분리해줌. OOV와 희귀어 신조어에 대응 가능. 단점은 부분으로 쪼개지다 보니 해석이 틀린 경우가 있을 수 있음.
+하나의 단어를 의미있는 작은 단어 단위로 분리해줌. OOV와 희귀어 신조어에 대응 가능. 단점은 부분으로 쪼개지다 보니 해석이 틀린 경우가 있을 수 있음. Dynamic context-aware tokenization. 토큰이 너무 짧으면 Vocab 크기가 줄어들고 Sequence 기리가 길어져서 모델 부담 증가함. 토큰이 길수록 Vocab은 증가하고 OOV 문제가 늘어남.
 
 Byte Pair Encoding (BPE)
 - 원래는 데이터 압축 알고리즘
 - 빈도수가 높은 문자 쌍을 반복적으로 병합하여 부분어 어휘를 생성
-- GPT가 사용
+- 빈도가 낮으면 더 쪼개진 형태가 되어 빈도가 높은 토큰으로 구성
+- 대전xx초등학교가 현재 corpus에선 너무 자주 나옴 ⇒ 이미 중요할 텐데 굳이 쪼갤 필요가 없다
+- GPT2가 사용
+- 정확히는 Byte-level BPE를 써서 사전 토큰화(공백으로 미리 자르는 과정)이 필요없다
+- 단점은 학습 데이터별로 BPE 모델이 따로 만들어짐
 
 여기서 aa가 많이 나오니깐 치환
 ```
@@ -142,16 +162,25 @@ Y=ab
 Z=aa
 ```
 
+
+
 WordPiece
-- BPE와 유사하지만 병할할때 통계적 언어 모델 이용
+- BPE 기반으로 병할할때 통계적 언어 모델 이용
+- Best token을 선택해서 vocab에 더하도록 한다
 - BERT가 사용
 
 Unigram Language Model
 - 서브워드 후보 집합 생성 => 각각의 확률을 기반으로 최적의 조합을 선택
 - SentencePiece 라이브러리에서 구현됨
 - llama에서 쓰는 듯
+- multilingual models에 사용
 
 이러한 토크나이저도 말뭉치(corpus)에서 어휘 및 규칙을 학습해서 얻게 된다. 자주 등장하는 서브워드 단위를 찾아 어휘, 병합 규칙을 생성. 학습의 결과물로 `vocab.txt` 또는 `vocab.json` (토큰↔ID), `merges.txt`(BPE), `tokenizer.json`(전체 설정)
+
+스폐셜 토큰
+{"unk_token": "[UNK]", "sep_token": "[SEP]", "pad_token": "[PAD]", "cls_token": "[CLS]", "mask_token": "[MASK]"}
+
+
 
 토크나이저를 새로 학습해야할까? 언어 모델안에 있는 임베딩 테이블은 토크나이저의 어휘와 일대일로 대응됨. 토크나이저를 바꾸면 결국 임베딩 테이블이 맞지 않게 됨. 
 
@@ -169,7 +198,9 @@ Unigram Language Model
 
 ![Image](https://github.com/user-attachments/assets/5d4dbca1-f9ff-4d9d-8ae4-a88f3799e191)
 
-임베딩 레이어를 이용해서 해당 인덱스에 대응되는 임베딩을 뽑도록 함. Word2vec 등 방식이 있었지만 요즘은 End-to-End로 언어모델을 학습하면서 같이 학습.
+임베딩 레이어를 이용해서 해당 인덱스에 대응되는 임베딩을 뽑도록 함. Word2vec 등 방식이 있었지만 요즘은 End-to-End로 언어모델을 학습하면서 같이 학습. 즉 옛날에는 사전학습으로 임베딩을 다 확보해둠. 보통은 단어의 의미는 주변 단어에 의해 된다라는 언어학적 가정을 기반으로 함
+![Image](https://github.com/user-attachments/assets/b2a6ed0a-05c4-486a-ab09-0b042de8cbad)
+똑같이 뒤에 student, cook이 있는데 I 다음에는 am, You 다음에는 are ⇒ am, are과 비슷할 것이다
 
 
 ## Language Model
@@ -366,9 +397,29 @@ model-based quality filtering (fast classifiers like Meta AI's fastText and RoBE
 
 ![Image](https://github.com/user-attachments/assets/d2a85ff1-9e5b-4b32-ad69-538c2428634b)
 
+![Image](https://github.com/user-attachments/assets/e151d0f2-64dc-4107-b9db-8a779197cea9)
+
+
+(1) Decoder-Only : GPT-like (also called auto-regressive Transformer models), 
+- huggingface에선 `AutoModelForCausalLM`
+- Next token prediction을 통해 학습
+- NLG Task에서 강점
+
+(2) Encoder-Only : BERT-like (also called auto-encoding Transformer models)
+- Bi-directional Language Model 구현 가능
+- MLM(Masked Language Model)과 같은 다양한 objective를 통해 학습
+- NLU Task(Text classification)에서 강점
+
+(3) Encoder-Decoder : BART/T5-like (also called sequence-to-sequence Transformer models)
+- huggingface에선 `AutoModelForSeq2SeqLM`
+- 다양한 objective 통해 학습
+- NLU와 NLG task 모두
+
 2018년 
 - 6월: GPT 발표
-- 10월 : BERT 발표 SQuAD 리더보드를 점령하면서 PLM의 시대를 열었음.
+- 10월
+  - BERT 발표 SQuAD 리더보드를 점령하면서 PLM의 시대를 열었음.
+  - 데이터 레이블링 비용 없이 Unlabeled data를 통해 사전학습을 수행한 뒤 전이학습 수행하는걸 유행시킴
 
 ### 2019년
 
@@ -504,3 +555,5 @@ Pre-training한 모델은 학습 분포에서 나온것 같은 그럴싸한 문�
 
 
 https://github.com/mlabonne/llm-course
+
+https://ratsgo.github.io/nlpbook/docs/preprocess/bpe/
