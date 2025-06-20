@@ -149,3 +149,13 @@ Transformer Decoder만을 활용하여 언어 모델 사전학습. 단순한 언
 - 출력 : 마지막에 layer를 추가하여 $\hat{y}$을 얻음
 
 ![Image](https://github.com/user-attachments/assets/9037187a-35e4-4306-a362-7f4acbb0679c)
+
+
+
+# Huggingface Transformers
+## Argumnets 처리
+
+
+베이스가 되는 Argument 처리 클래스로 `TrainingArguments`가 있음
+
+https://github.com/huggingface/transformers/blob/v4.52.3/src/transformers/training_args.py#L209

@@ -6,6 +6,7 @@ import sys
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Optional
+import wandb 
 
 import datasets
 import evaluate
@@ -33,9 +34,9 @@ from transformers.utils.versions import require_version
 
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.53.0.dev0")
+# check_min_version("4.53.0.dev0")
 
-require_version("datasets>=2.14.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
+# require_version("datasets>=2.14.0", "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt")
 
 logger = logging.getLogger(__name__)
 
@@ -47,28 +48,39 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 # 내가 직접 정의해서 trasnformers의 Argument 클래스와 합칠 수 있음
 @dataclass
 class CustomArguments:
-    dataset_name = field(default=None)
-    dataset_config_name = field(dafault=None) # subset으로 나눠진 경우 해당 이름
-    train_file = field(default=None)
-    validation_file = field(default=None)
-    max_train_samples = field(default=None)
-    max_eval_samples = field(default=None)
-    streaming = field(default=None)
-    block_size = field(default=None) # 토큰화 이후 인풋 시퀀스 길이
-    overwrite_cache = field(default=None)
-    validation_split_percentage = field(default=5)
-    preprocessing_num_workers = field(default=None)
-    keep_linebreaks = field(default=True) # txt 파일 쓸 때 라인 브레이크 유지할지
-    model_name_or_path = field(default=None)
-    model_type = field(default=None)
-    config_overrides = field(default=None)
-    config_name = field(default=None)
-    tokenizer_name = field(default=None)
-    cache_dir = field(default=None)
-    use_fast_tokenizer = field(default=True)
-    model_revision = field(default="main")
-    trust_remote_code = field(default=True)
-    torch_dtype = field(default="bfloat1")
+    # 데이터 관련
+    dataset_name: Optional[str] = None
+    dataset_config_name: Optional[str] = None # subset으로 나눠진 경우 해당 이름
+    train_file: Optional[str] = None
+    validation_file: Optional[str] = None
+    max_train_samples: Optional[int] = None
+    max_eval_samples: Optional[int] = None
+    streaming: bool = False
+    block_size: Optional[int] = None # 토큰화 이후 인풋 시퀀스 길이
+    overwrite_cache: bool = False
+    validation_split_percentage: int = 5
+    preprocessing_num_workers: Optional[int] = None
+    keep_linebreaks: bool = True # txt 파일 쓸 때 라인 브레이크 유지할지
+
+    # 모델·토크나이저 관련
+    model_name_or_path: Optional[str] = None
+    model_type: Optional[str] = None
+    config_overrides: Optional[str] = None
+    config_name: Optional[str] = None
+    tokenizer_name: Optional[str] = None
+    cache_dir: Optional[str] = None
+    use_fast_tokenizer: bool = True
+    model_revision: str = "main"
+    trust_remote_code: bool = True
+    token: Optional[str] = None
+    torch_dtype: Optional[str] = "bfloat16"
+
+    # 로그
+    wandb_project: str = "clm"
+    wandb_run_name: str = "run1"
+    wandb_entity: Optional[str] = "ailab"
+    wandb_host: Optional[str] = "http://wandb.artfacestudio.com"
+    wandb_key: Optional[str] = None
 
 def main():
     parser = HfArgumentParser((CustomArguments, TrainingArguments))
@@ -91,6 +103,8 @@ def main():
 
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
+
+    # 
     datasets.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.enable_default_handler()
@@ -102,7 +116,15 @@ def main():
         + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
     )
     logger.info(f"Training/evaluation parameters {training_args}")
+    
 
+    if training_args.local_process_index == 0:
+        wandb.login(key=custom_args.wandb_key, host=custom_args.wandb_host)
+        wandb.init(
+            project=custom_args.wandb_project,
+            name=custom_args.wandb_run_name,
+            config={**vars(custom_args), **training_args.to_dict()}
+        )
     # Detecting last checkpoint.
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
@@ -135,7 +157,7 @@ def main():
 
         # train만 있는 경우
         # train에서 일부를 잘라서 validation으로 사용
-        if "validataion" not in raw_datasets.keys():
+        if "validation" not in raw_datasets.keys():
             raw_datasets["validation"] = load_dataset(
                 path=custom_args.dataset_name, #
                 name= custom_args.dataset_config_name,
@@ -212,11 +234,10 @@ def main():
     config_kwargs = {
         "cache_dir": custom_args.cache_dir,
         "revision": custom_args.model_revision,
-        "token": custom_args.token,
         "trust_remote_code": custom_args.trust_remote_code,
     }
 
-    config = AutoConfig.from_pretrained(custom_args.config_name, **config_kwargs)
+    config = AutoConfig.from_pretrained(custom_args.model_name_or_path, **config_kwargs)
 
     tokenizer_kwargs = {
         "cache_dir":  custom_args.cache_dir,
@@ -264,7 +285,7 @@ def main():
     with training_args.main_process_first(desc="dataset map tokenization"):
         # 멀티프로세싱은 스트리밍아닐때만 사용 캐시에서 불러와서
         if not custom_args.streaming:
-            tokenized_function = raw_datasets.map(
+            tokenized_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
                 num_proc=custom_args.preprocessing_num_workers,
@@ -298,11 +319,14 @@ def main():
 
 
     def group_texts(examples):
+        # 전체 텍스트를 하나로 concat함
         concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
         total_length = len(concatenated_examples[list(examples.keys())[0]])
+        # block size에 맞게 dropout
         total_length = (total_length // block_size) * block_size
+        # Split by chunks of max_len
         result = {
-            k: [] for k, t in concatenated_examples.items()
+            k: [t[i : i + block_size] for i in range(0, total_length, block_size)] for k, t in concatenated_examples.items()
         }
         result["labels"] = result["input_ids"].copy()
         return result
@@ -325,7 +349,7 @@ def main():
     if training_args.do_train:
         train_dataset = lm_datasets["train"]
         if custom_args.max_train_samples is not None:
-            max_train_samples = min(len(eval_dataset), custom_args.max_train_samples)
+            max_train_samples = min(len(train_dataset), custom_args.max_train_samples)
             train_dataset = train_dataset.select(range(max_train_samples))
 
     if training_args.do_eval:
@@ -395,7 +419,7 @@ def main():
     if training_args.do_eval:
         metrics = trainer.evaluate()
 
-        max_eval_sampels = custom_args.max_eval_samples if custom_args.max_eval_samples is not None else len(eval_dataset)
+        max_eval_samples = custom_args.max_eval_samples if custom_args.max_eval_samples is not None else len(eval_dataset)
 
         metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
 

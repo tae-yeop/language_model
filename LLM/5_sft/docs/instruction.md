@@ -71,6 +71,9 @@ print(tokenizer.default_chat_template)
 
 이런 방법은 FLAN(Finetuned Language Models are Zero-Shot Learners, Jason Wei et al.)에서 제시됨. 
 
+“Converting train dataset to ChatML" => “Applying chat template” => “Tokenizing” => “Truncating”
+
+
 ### Self-Instruction
 
 그런데 이런 Instuction Dataset을 만드는데 비용이 많이 든다.  Self-Instruct: Aligning LM with Self Generated Instructions에서 제안한 방법. GPT4를 활용하도록 하는데 몇 개 예제를 만들어 놓어서 context로 넣어서 더 많은 Instruction과 Response를 얻는다. 이후 이를 다시 이를 인풋으로 넣어서 더 많이 불린다?

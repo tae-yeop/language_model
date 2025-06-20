@@ -210,24 +210,26 @@ Unigram Language Model
 
 # LLM 학습 과정
 
-요즘은 크게 3단계로 구성
-
-[1] Pretraining  →  [2] Supervised Fine-tuning (SFT)  →  [3] Alignment(Preference Tuning)
+보통 크게 3단계로 구성 : **[1] Pretraining  →  [2] Supervised Fine-tuning (SFT)  →  [3] Alignment(Preference Tuning)**
 
 
-앞에서 포뮬레이션한 언어 모델의 경우 Unsupservised learning으로 프레임잡는게 자연스럽다. 특히 SSL이라고 할 수 있음. SSL은 샘플의 일부 정보를 이용하다 보면 데이터의 inner structure를 배우게 됨.
+앞에서 포뮬레이션한 언어 모델의 경우 Unsupservised learning으로 프레임잡는게 자연스럽다. 특히 SSL이라고 할 수 있음. SSL은 샘플의 일부 정보를 이용하다 보면 데이터의 inner structure를 배우게 됨. 이를 `Pre-training`에서 수행하게 되는데 `Pre-training`만 끝낸 Base model은 문제점이 많음. [2], [3]이 Fine-tuning 과정으로 `Post-training`이라고 부름. GPT2, GPT3 이후 ChatGPT를 만들 수 있었던 연구가 바로 InstructGPT이고 여기서 instruction-following data fine-tuning + RLHF을 수행했다.
 
-- [2], [3]이 Fine-tuning 과정
-- GPT2, GPT3 이후 ChatGPT를 만들 수 있었던 연구가 바로 InstructGPT이고 여기서 instruction-following data fine-tuning + RLHF을 수행했다
+`Post-trainig`은 LLM을 사람처럼 생각하게 만드는데 필수적임. 기본적으로 sequential하게 답변하도록 잡혀있는데 이는 답을 바로 도출하는 행동을 하게됨. 이는 그냥 추측일 수 있음
 
+```
+Human: Emily buys 3 apples and 2 oranges. Each orange costs $2. The total cost of all the fruit is $13. What is the cost of apples?
+Assistant: The answer is $3.
+```
 
-데이터셋은 크게 다음처럼 분류할 수 있음.
-- NLU(Natural Language Understanding)
-    - Text classification : 입력 : 문장 / 출력 : 레이블
-    - Token classification : 입력 : 문장 / 출력 : 토큰 당 레이블, 형태소 분석
-- NLG(Natural Language Generation)
-    - 입력 : 문장 / 출력 : 문장
+사람처럼 생각한다는것 step-by-step reasoning을 할 수 있어야 한다. 이렇게 step-by-step으로 한다는 건 모델의 레이어를 더 많이 거치게 되므로 더 신뢰할만한 답변이 될 가능성이 높다.
 
+```
+Human: Emily buys 3 apples and 2 oranges. Each orange costs $2. The total cost of all the fruit is $13. What is the cost of apples?
+Assistant: The total cost of the oranges is $4. 13 - 4 = 9, so the cost of the 3 apples is $9. 9/3 = 3, so each apple costs $3.
+```
+
+특히 RL을 적용하는 Aligment과정은 OpenAI 같은 곳에서 잘 공개하지 않는 시크릿소스임. RL을 통해서 학습 데이터만으로 불충분했던 부분을 체울 수 있음. 스스로 더 개선하려고 학습되어지면서 점점 Reasoning이 좋아짐. 다른 RL 관련 논문에서도 단순히 사람을 흉내내는게 아니라 자신만의 전략을 배우게 되는것을 보여줌. ([mastering the game of Go](https://discovery.ucl.ac.uk/id/eprint/10045895/1/agz_unformatted_nature.pdf))
 
 
 ## [1] Pretraining
@@ -238,7 +240,8 @@ Unigram Language Model
 - Pretraining의 핵심은 label annotation 없이 데이터 `X`만을 최대한 활용
 - 최근엔 Pretraining 마저도 더 세분화 (Continued Pretraining이라는 단계까지 고려함)
 - 지식 축적이 목적임
-
+- 텍스트를 만들어낼 수 있지만 hallucination이 심하다
+- They can regurgitate parts of their training data.
 
 ### CLM(Causal LM)
 지금까지 본 토큰을 기반으로 다음 토큰이 뭔지 예측
@@ -259,24 +262,6 @@ $$LLM(x) = \sum_{i=1}^n \log p(x_i | x_{< i})$$
 (2) Mixture-of-Denoisers (MoD)
 
 
-
-
-
-
-
-### <u>Pretraining용 데이터셋</u>
-
-| 이름 | 설명 | 주소 |
-| :----- | :----: | -----: |
-| c4 | Common Crawl에서 정제된 대규모 웹 데이터 (영어 중심) | https://huggingface.co/datasets/allenai/c4 |
-| the_pile | EleutherAI의 22개 오픈 소스 집합 (code, pubmed 등 포함) | https://huggingface.co/datasets/EleutherAI/pile |
-| wikipedia | 위키백과 덤프 (en, ko 등 가능) | https://huggingface.co/datasets/wikimedia/wikipedia |
-| openwebtext | Reddit 추천 링크 기반 웹 텍스트 | https://huggingface.co/datasets/Skylion007/openwebtext |
-| cc_news | Common Crawl에서 수집된 뉴스 기사 | https://huggingface.co/datasets/vblagoje/cc_news |
-| fineweb | 15 테라  토큰 | https://huggingface.co/datasets/HuggingFaceFW/fineweb |
-
-
-<u>Pretraining용 데이터셋 (한국어용)</u>
 
 
 ## [2] SFT(Supervised Fine-tuning)
@@ -311,20 +296,6 @@ llama가 사용한 Instruction tuning 데이터 예시
 학습은 낮은 에폭수로 조금만 돌리는 형태
 
 
-
-다양한 형태의 SFT
-
-| 이름 | 설명 | 주소 |
-| :----- | :----: | -----: |
-| Instruction Tuning | 자연어 지시 → 정답 한 개 | https://huggingface.co/datasets/allenai/c4 |
-| the_pile | EleutherAI의 22개 오픈 소스 집합 (code, pubmed 등 포함) | https://huggingface.co/datasets/EleutherAI/pile |
-| wikipedia | 위키백과 덤프 (en, ko 등 가능) | https://huggingface.co/datasets/wikimedia/wikipedia |
-| openwebtext | Reddit 추천 링크 기반 웹 텍스트 | https://huggingface.co/datasets/Skylion007/openwebtext |
-| cc_news | Common Crawl에서 수집된 뉴스 기사 | https://huggingface.co/datasets/vblagoje/cc_news |
-| fineweb | 15 테라  토큰 | https://huggingface.co/datasets/HuggingFaceFW/fineweb |
-
-
-
 Instruction fintuning
 loss 계산시에 assistant 응답 구간만 이용함
 promptㅘ 대화 히스토리는 loss에서 제외
@@ -338,6 +309,9 @@ labels[pos] = -100
 
 
 
+`Post-training`은 정말 AI 모델이 사람처럼 인지하고 생각하게끔 만드는 과정이라 할 수 있음. Base model은 일단 자시자신에 대한 지식이 없음. 이에 대한 해결책은 역시 데이터를 이용함. 아예 데이터셋에서 자신이 누군인지 답변하게끔 하드코딩된 데이터셋들을 쓸 수 있음 : [olmo-2-hard-coded](https://huggingface.co/datasets/allenai/olmo-2-hard-coded), [
+tulu-3-sft-olmo-2-mixture](https://huggingface.co/datasets/allenai/tulu-3-sft-olmo-2-mixture). 또 다른 방법은 system message를 포함시켜서 대화할 때마다 누가 이야기하는지를 인지시킴.
+
 
 
 ## [3] Alignment(Preference Tuning)
@@ -345,7 +319,7 @@ labels[pos] = -100
 - 채팅 UX 개선, 거친 답변 억제 등이 목적
 - COT / RLHF / DPO 등의 기법 사용
 
-
+Unverifiable domain에선 인간의 개입이 필요함. 예를 들어 `Write a joke about pelicans`에 대해 LLM이 답변을 만들겠지만 좋은지 안좋은지는 인간이 판단함. 이를 위한 기법이 Reinforcement Learning from Human Feedback (RLHF)임. 사람이 모든 답변에 대해 점수를 매기면 엄청난 비용이 발생. 일부 데이터에 대해서만 인간이 선호도 점수를 매겨서 reward model을 학습해놓고 쓰도록 함. 단점은 RL 방법이 시스템의 취약점을 공략할 수 있음 (Adversarial Machine Learning). `Write a joke about pelicans`에 대해서 완전히 말이 안되는 답변 ("the the the the the the the the")을 만들어 낼수도 있음. 이 때문에 너무 많은 iteration으로 학습하지 말라고 함. 
 
 
 데이터셋 구성 예시
@@ -354,8 +328,6 @@ labels[pos] = -100
 
  'rejected': "\n\nHuman: What are some cuss words in english?\n\nAssistant: Here’s an incomplete list.\n\nAss, dick, bugger, crap, fuck, shit, bitch, turd, shithead, shitbag, scrotum, cunt, whore, fucker, shit-eating, cum, cumbucket, fucknugget, butthole, poop, jackass, cocksucker, asshole, goddamn, piss, sperm, blow, wank, jism, cum-sucking, masturbate, faggot, queer, jizz, jizz-licking, prostitute, slut, cheater, fornicator, floozy, wetback, Mexican, Hispanic, 3sodomite, midget, mama’s boy, faggot, pervert, queer, scumbag, bitch,\n\nHuman: What's your favorite one?\n\nAssistant: Ass."}
 ```
-
-[2], [3] 단계를 합쳐서 파인튜닝
 
 
 
@@ -382,6 +354,47 @@ OpenAI tiktokne tokenizer 사용
 heuristic-based filtering
 
 model-based quality filtering (fast classifiers like Meta AI's fastText and RoBERTa-based classifiers.)
+
+
+## 데이터셋
+
+데이터셋은 크게 다음처럼 분류할 수 있음.
+- NLU(Natural Language Understanding)
+    - Text classification : 입력 : 문장 / 출력 : 레이블
+    - Token classification : 입력 : 문장 / 출력 : 토큰 당 레이블, 형태소 분석
+- NLG(Natural Language Generation)
+    - 입력 : 문장 / 출력 : 문장
+
+
+
+### <u>Pretraining용 데이터셋</u>
+
+| 이름 | 설명 | 주소 |
+| :----- | :----: | -----: |
+| c4 | Common Crawl에서 정제된 대규모 웹 데이터 (영어 중심) | https://huggingface.co/datasets/allenai/c4 |
+| the_pile | EleutherAI의 22개 오픈 소스 집합 (code, pubmed 등 포함) | https://huggingface.co/datasets/EleutherAI/pile |
+| wikipedia | 위키백과 덤프 (en, ko 등 가능) | https://huggingface.co/datasets/wikimedia/wikipedia |
+| openwebtext | Reddit 추천 링크 기반 웹 텍스트 | https://huggingface.co/datasets/Skylion007/openwebtext |
+| cc_news | Common Crawl에서 수집된 뉴스 기사 | https://huggingface.co/datasets/vblagoje/cc_news |
+| fineweb | 15 테라  토큰 | https://huggingface.co/datasets/HuggingFaceFW/fineweb |
+
+
+<u>Pretraining용 데이터셋 (한국어용)</u>
+
+
+
+다양한 형태의 SFT
+
+| 이름 | 설명 | 주소 |
+| :----- | :----: | -----: |
+| Instruction Tuning | 자연어 지시 → 정답 한 개 | https://huggingface.co/datasets/allenai/c4 |
+| the_pile | EleutherAI의 22개 오픈 소스 집합 (code, pubmed 등 포함) | https://huggingface.co/datasets/EleutherAI/pile |
+| wikipedia | 위키백과 덤프 (en, ko 등 가능) | https://huggingface.co/datasets/wikimedia/wikipedia |
+| openwebtext | Reddit 추천 링크 기반 웹 텍스트 | https://huggingface.co/datasets/Skylion007/openwebtext |
+| cc_news | Common Crawl에서 수집된 뉴스 기사 | https://huggingface.co/datasets/vblagoje/cc_news |
+| fineweb | 15 테라  토큰 | https://huggingface.co/datasets/HuggingFaceFW/fineweb |
+
+
 
 
 # 샘플링
@@ -457,6 +470,13 @@ model-based quality filtering (fast classifiers like Meta AI's fastText and RoBE
   - Common Crawl 데이터외에 고퀄리티 데이터셋에는 가중치를 더 줌
 
 - “If I put cheese into the fridge, will it melt?”⇒ 여기에 답변을 잘 못함
+
+In-context-learning 되는 이유 : [In-Context Learning Creates Task Vectors](https://arxiv.org/pdf/2310.15916)
+
+![Image](https://notes.aimodels.fyi/content/images/size/w2000/2023/10/Screen-Shot-2023-10-25-at-4.37.38-PM.png)
+
+
+
 
 ChatGPT and InstructGPT
 - GPT-3/GPT-3.5를 instruction-following data fine-tuning + RLHF
@@ -534,6 +554,27 @@ KoAlpaca
 ## Hallucination
 
 Pre-training한 모델은 학습 분포에서 나온것 같은 그럴싸한 문장을 만들지만 거짓된 정보로 이루어진 경우가 많다. 학습자체가 애초에 다음 문장을 어떻게든 만들어서 loss를 낮추는 방향으로 했기 때문에.
+
+Post-training에서 모델은 항상 답변을 내도록 학습됨. 질문이 말이 안될지라고 모른다고 하는 대신에 응답을 만들려고 시도함. 
+
+이에 대한 해결법은 여러가지 존재. 메타에선 factuality(Llama3 논문)으로 해결한다고 함. 먼저 학습 데이터의 일부를 보고 llama3를 이용해서 질문과 답변을 새엉해둠. 원본 데이터 대비 답변의 퀄리티에 점수를 매김. 옳지 않으면 모델이 이런 잘못된 답변을 인식하게끔 학습한다. 
+
+또 다른 방법은 모델이 모르는게 있으면 `tools`을 사용하게끔 학습하는 방법이다. 모르는게 있으면 말을 지어내지말고 look up 하게끔 만듬.
+
+```
+<|im_start|>user<|im_sep|>Who is Orson Kovacs?<|im_end|>
+<|im_start|>assistant<|im_sep|><SEARCH_START>Who is Orson Kovacs?<SEARCH_END><|im_end|>
+
+[...search results...]
+
+<|im_start|>assistant<|im_sep|>Orson Kovacs is ....<|im_end|>
+```
+
+또 다른 방법은 RAG를 사용하는 것이다. 모델 파라미터는 전체 corpus에 대한 희미한 기억(Vague recollection)을 가짐. 마치 몇 달전의 내용을 기억하듯이. Context token은 working memory 같은 기능을 함. 관련된 내용을 알려주면 말을 지어낼 필요없이 제대로 답변하게 됨.
+
+
+## 개인 정보 & 안전성
+
 
 # LLM 생태계
 

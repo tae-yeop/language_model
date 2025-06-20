@@ -16,6 +16,7 @@ datasets
 runs
 output
 output*
+out
 examples
 
 # Byte-compiled / optimized / DLL files
