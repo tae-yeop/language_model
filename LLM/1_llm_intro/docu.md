@@ -1,10 +1,10 @@
-# LLM 개요
+# 언어모델 개요
 
 언어모델을 더 큰 데이터셋과 더 큰 모델(B 단위)로 학습
 
 부분 문장을 보고 다른 부분을 예측하는게 핵심
 
-```
+```python
 When I hear rain on my roof, I _______ in my kitchen.
 ```
 
@@ -20,6 +20,7 @@ relax 2.2%
 중간 단어, 문장이 아니라 다음 단어(Next Token)을 예측하는 경우 텍스트 생성, 챗봇 등 다양한 태스크에 활용 가능.
 
 다음과 같이 token의 seqeunce 데이터를 모았다고 가정. token은 vocab $\mathcal{V}$ 의 종류 중 하나임.
+
 $$
 \mathcal{U} = \{ U_1, \dots, U_i, \dots U_N \} \\
 
@@ -36,7 +37,7 @@ p_{\theta}(U_i) = \prod_{j=1}^{n_i} p_{\theta}(u_j | u_{0 : j-1}) \\
 p_{\theta}(U_i) = p_{\theta}(u_1, u_2, \dots, u_j, \dots, u_{n_i})
 $$
 
-chain rule로 표현하면 다음과 같다. 
+chain rule로 표현하면 다음과 같다.
 
 $$
 P(x_{1:n}) = P(x_1, \dots, x_n)
@@ -92,6 +93,11 @@ $$
 - 적절히 tokenization을 해야한다 ⇒ 작은 차이가 큰 영향을 줄 수 있어서
 
 
+다른 대안이 있을까?
+
+- large concept model
+
+
 # LLM 파이프라인
 
 ## Preprocessing
@@ -110,7 +116,7 @@ $$
 
 
 
-토큰 방식은 세 가지 : 1. 전체 단어 기반 2. 문자 기반 3. 부분어(서브워드) 기반이 있음
+토큰 방식은 세 가지 : Rule-based (1. 전체 단어 기반 2. 문자 기반) Word-based (3. 부분어(서브워드) 기반)이 있음
 
 1 Full Word 방식은 공백과 구두점 기준으로 분할
 ```
@@ -128,7 +134,7 @@ $$
 
 3 Subword-Based 방식
 
-하나의 단어를 의미있는 작은 단어 단위로 분리해줌. OOV와 희귀어 신조어에 대응 가능. 단점은 부분으로 쪼개지다 보니 해석이 틀린 경우가 있을 수 있음. Dynamic context-aware tokenization. 토큰이 너무 짧으면 Vocab 크기가 줄어들고 Sequence 기리가 길어져서 모델 부담 증가함. 토큰이 길수록 Vocab은 증가하고 OOV 문제가 늘어남.
+하나의 단어를 의미있는 작은 단어 단위로 분리해줌. OOV와 희귀어 신조어에 대응 가능. 교착어에 좋음. 단점은 부분으로 쪼개지다 보니 해석이 틀린 경우가 있을 수 있음. Dynamic context-aware tokenization. 토큰이 너무 짧으면 Vocab 크기가 줄어들고 Sequence 기리가 길어져서 모델 부담 증가함. 토큰이 길수록 Vocab은 증가하고 OOV 문제가 늘어남.
 
 Byte Pair Encoding (BPE)
 - 원래는 데이터 압축 알고리즘
@@ -183,6 +189,11 @@ Unigram Language Model
 
 
 토크나이저를 새로 학습해야할까? 언어 모델안에 있는 임베딩 테이블은 토크나이저의 어휘와 일대일로 대응됨. 토크나이저를 바꾸면 결국 임베딩 테이블이 맞지 않게 됨. 
+
+
+GPT계열 : Byte-level BPE
+WordPiece : BERT
+Sentencepiece or Unigram
 
 
 ## Numeric Encoding
@@ -598,3 +609,5 @@ Post-training에서 모델은 항상 답변을 내도록 학습됨. 질문이 �
 https://github.com/mlabonne/llm-course
 
 https://ratsgo.github.io/nlpbook/docs/preprocess/bpe/
+
+https://hyen4110.tistory.com/89
