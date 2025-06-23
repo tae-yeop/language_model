@@ -4,7 +4,7 @@
 
 부분 문장을 보고 다른 부분을 예측하는게 핵심
 
-```python
+```
 When I hear rain on my roof, I _______ in my kitchen.
 ```
 
@@ -21,13 +21,13 @@ relax 2.2%
 
 다음과 같이 token의 seqeunce 데이터를 모았다고 가정. token은 vocab $\mathcal{V}$ 의 종류 중 하나임.
 
-$$
+```math
 \mathcal{U} = \{ U_1, \dots, U_i, \dots U_N \} \\
 
 U_i = (u_1, u_2, \dots, u_j, \dots, u_{n_i}) \\
 
 u_j \in \mathcal{V}
-$$
+```
 
 Large language modelautoregressive distribution을 인코딩하려고 한다. 문장의 확률은 단어들의 joint probability이다.
 
