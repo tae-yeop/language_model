@@ -21,21 +21,16 @@ relax 2.2%
 
 다음과 같이 token의 seqeunce 데이터를 모았다고 가정. token은 vocab $\mathcal{V}$ 의 종류 중 하나임.
 
-```math
+$$
 \mathcal{U} = \{ U_1, \dots, U_i, \dots U_N \} \\
-
 U_i = (u_1, u_2, \dots, u_j, \dots, u_{n_i}) \\
-
 u_j \in \mathcal{V}
-```
+$$
 
 Large language modelautoregressive distribution을 인코딩하려고 한다. 문장의 확률은 단어들의 joint probability이다.
 
-$$
-p_{\theta}(U_i) = \prod_{j=1}^{n_i} p_{\theta}(u_j | u_{0 : j-1}) \\
-
-p_{\theta}(U_i) = p_{\theta}(u_1, u_2, \dots, u_j, \dots, u_{n_i})
-$$
+$$p_{\theta}(U_i) = \prod_{j=1}^{n_i} p_{\theta}(u_j | u_{0 : j-1}) \\
+p_{\theta}(U_i) = p_{\theta}(u_1, u_2, \dots, u_j, \dots, u_{n_i})$$
 
 chain rule로 표현하면 다음과 같다.
 
