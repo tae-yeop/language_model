@@ -22,8 +22,12 @@ relax 2.2%
 다음과 같이 token의 seqeunce 데이터를 모았다고 가정. token은 vocab $\mathcal{V}$ 의 종류 중 하나임.
 
 $$
+\begin{aligned}
 \mathcal{U} = \{ U_1, \dots, U_i, \dots U_N \} \\
 U_i = (u_1, u_2, \dots, u_j, \dots, u_{n_i}) \\
+\end{aligned}
+$$
+$$
 u_j \in \mathcal{V}
 $$
 
