@@ -1,7 +1,88 @@
 # 언어모델 개요
 
-언어모델을 더 큰 데이터셋과 더 큰 모델(B 단위)로 학습
+항상 그렇듯이 파라미터 $\theta$로 표현되는 딥러닝 모델은 데이터 분포를 근사하도록 한다. 언어의 경우 문장이 핵심인데 문장은 단어들이 나열되는 시퀀스 $x_{1:T}$라고 할 수 있다. 즉 언어모델은 Joint distribution $P_{\theta}(x_{1:T})$를 근사하는 것이 목표이다.
 
+각 단어들의 최소 단위를 token이라고 하고 이런 seqeunce of token 데이터를 모았다고 가정하자. token은 vocab $\mathcal{V}$ 의 종류 중 하나임. vocab은 어떤 단어들로 구성되어 있는지 말 그래도 단어 사전.
+
+$$
+\begin{aligned}
+\mathcal{X} = \{ X_1, \dots, X_i, \dots X_N \} \\
+X_i = (x_1, x_2, \dots, x_j, \dots, x_{n_i}) \\
+\end{aligned}
+$$
+$$
+x_j \in \mathcal{V}
+$$
+
+항상 그렇듯이 Negative log likelihood $−logP_θ(x_{1:T})$를 낮다보면 근사를 할 수 있는데 어떤 전략으로 접근할지 여러가지를 생각할 수 있다. 이미지 생성 모델에서 VAE, GAN, NF, Diffusion 등에서 다른 전략을 취했듯이 같은 맥락이다. 이때 현시점에서 가장 유행하고 또 전통적으로 구성한 방식이 Autoregressive이다.왜냐면 사람이 말을 하거나 글을 쓸 때 순차적으로 단어들을 표현하기 때문에. 시간 순서의 의존성이 있다고 보고 이전 단어들이 다음 단어에 영향을 준다는 조건부 구조가 자연스레 적용할 수 있다. 예를 들어 다음 문장은 다음과 같이 chain rule로 만들 수 있다.
+
+$$P(\text{<BOS>}, \text{I, love, to, play, <EOS>}) = P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{<BOS>}, \text{I, love, to, play})$$
+$$= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{<BOS>}, \text{I, love, to})$$
+$$= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{<BOS>}, \text{I, love})$$
+$$= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{love} | \text{<BOS>}, \text{I})P(\text{<BOS>}, \text{I})$$
+$$= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{love} | \text{<BOS>}, \text{I})P(\text{I} | \text{<BOS>})P(\text{<BOS>})$$
+
+Chain rule을 사용한 Autoregressive distribution formula를 표현하면 다음과 같다.
+
+$$
+P(x_{1:n}) = P(x_1, \dots, x_n)
+$$
+$$
+= P(x_n | x_1, \dots, x_{n-1}) \cdots P(x_2 | x_1) P(x_1)
+$$
+$$
+= \prod_{i=1}^{n} P(x_i | x_{<i})
+$$
+$$
+\therefore \log P(x_{1:n}) = \sum_{i=1}^{N} \log P(x_i | x_{<i})
+$$
+
+$$
+\begin{aligned}
+p_{\theta}(U_i) = \prod_{j=1}^{n_i} p_{\theta}(u_j | u_{0 : j-1}) \\
+p_{\theta}(U_i) = p_{\theta}(u_1, u_2, \dots, u_j, \dots, u_{n_i})
+\end{aligned}$$
+
+이렇게 포뮬레이션하는게 말이 되는 이유는 사람도 머릿속에 언어모델이 비슷하게 동작할 것이라고 생각되기 때문. 단어와 단어 사이의 확률이 우리도 모르게 학습되어 있음. 대화를 하다가 정확하게 듣지 못하여도 대화에 지장이 없음. 음성 인식과 달리 잘 동작하는건 단어와 단어 사이의 출현 빈도(확률)에 대한 이해가 있기 때문. 다음을 최대화하도록 학습
+
+$$p_{\theta}(\mathcal{U}) = \prod_{i=1}^{N} p_{\theta}(U_i)$$
+
+목적식은 다음과 같이 구성된다. 확률 분포에 대해 비교를 하게 되므로 loss식으로 치환하면 결국 CE loss가 기본으로 쓰이는 형태가 된다.
+
+$$\mathcal{D} = \{x^i\}_{i=1}^N$$
+$$\hat{\theta} = \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \log P(x_{1:n}^i; \theta)$$
+$$= \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \sum_{j=1}^{n} \log P(x_j^i | x_{<j}^i; \theta)$$
+$$\text{where } x_{1:n} = \{x_1, \dots, x_n\}$$
+
+## Large Language Model
+
+앞전까지 내용이 언어모델이면 LLM(Large Language Model)은 뭘까? 큰 모델 + 큰 데이터 + 큰 연산을 통한 체급을 완전히 키운 녀석임. 빌리언 단위 스케일로 키우다보니 재미난 일들이 생긴다는 보고들이 나오기 시작하였다. 먼저 스케일을 키울수록 성능이 계속 좋아진다고 하는 [Chinchilla Scaling Law](https://arxiv.org/abs/2001.08361)가 있다.
+
+![Image](https://dynomight.net/img/scaling/scaling-law-ND.svg)
+
+데이터와 모델 파라미터를 늘릴 수록 loss가 점점 떨어진다. 즉 전체 계산하게 되는 총량이 늘어날수록 떨어진다는 사실이다.
+
+![Image](https://substackcdn.com/image/fetch/w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F071a53ae-e1d5-4af6-bcd5-4402cc27e924_2144x1244.png)
+
+이에 대한 비판점은 Chinchilla기반의 일부 실험을 얻어난 사실이고 정말 저 loss landscape 바깥 영역에도 이게 적용되는지는 확신하지 않다는 점. loss가 꼭 실제 성능 혹은 intelligence와 다를 수 있다는 점. 데이터 퀄리티에 대한 사항이 반영되지 않았다는 점 등이 있다. 자세한건 다음 글들을 참조 : [First-principles on AI scaling](https://dynomight.net/scaling/)
+
+또 다른 재미난 점은 Emergent Abilities라고 부르는데 모델 크기를 키우다보면 어느 순간 작은 모델은 못하던 능력이 급생겨난다는 점. 문장 추론이나 논리 문제등 작은 모델에선 거의 무작위 답을 내놓던게 엄청 키우면 성능이 급격히 증가한다고 함. : [Emergent Abilities of Large Language Models](https://arxiv.org/pdf/2206.07682)
+
+![Image](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*Zn5Pt5bxoZkEbMtZjmLhiQ.png)
+
+그런데 다른 연구에선 다른 연속 지표로 확인해보면 퀀텀 점프같은 형태가 아니라 다른 지표를 써서 확인해보면 연속적인 개형이 나온다고 하고 정의 자체가 불분명하고 어디까지를 포함할지 합의가 필요하다는 내용도 있음 : [Emergent Abilities in Large Language Models: A Survey](https://arxiv.org/pdf/2503.05788)
+
+이런 의견이 나오는건 계속 연구가 되면서 LLM에 대해서 알아가는 과정이라고 생각됨. 그냥 호들갑이었는지 아닌지 교통 정리는 빅테크나 DeepSeek같이 혁신적인 신흥 강자들이 해줄 것으로 기대됨. 실제로 작은 모델로도 좋은 성능을 내는 경우가 있어 스케일링만능론은 답이 아닐수도 있을 듯하다.
+
+그래도 확실한건 어느 수준의 큰 크기를 지니는 모델을 고퀄리티 데이터셋에 학습한 LLM은 일종의 AI가 생각하는 사고 엔진(Thinking Engine)으로써 사용되는 듯하다. VLM을 봐서도 알겠지만 시각 정보를 인지하게끔 하여 세상에 대해 조금 더 알게 할 수 있다. 심지어 로봇 팔의 action을 아웃풋으로 내게끔 하는 Vision-Language-Action Model(VLAM) 연구도 나오고 있다. 스카이넷과 T-1000 등장이 멀지 않은것 같다 : [OpenVLA](https://openvla.github.io/)
+
+![Image](https://openvla.github.io/static/images/openvla_model.jpg)
+
+
+
+## Better Alterantive?
+
+앞에선 Autogressive 방식
 부분 문장을 보고 다른 부분을 예측하는게 핵심
 
 ```
@@ -19,85 +100,12 @@ relax 2.2%
 
 중간 단어, 문장이 아니라 다음 단어(Next Token)을 예측하는 경우 텍스트 생성, 챗봇 등 다양한 태스크에 활용 가능.
 
-다음과 같이 token의 seqeunce 데이터를 모았다고 가정. token은 vocab $\mathcal{V}$ 의 종류 중 하나임.
-
-$$
-\begin{aligned}
-\mathcal{U} = \{ U_1, \dots, U_i, \dots U_N \} \\
-U_i = (u_1, u_2, \dots, u_j, \dots, u_{n_i}) \\
-\end{aligned}
-$$
-$$
-u_j \in \mathcal{V}
-$$
-
-Large language modelautoregressive distribution을 인코딩하려고 한다. 문장의 확률은 단어들의 joint probability이다.
-
-$$p_{\theta}(U_i) = \prod_{j=1}^{n_i} p_{\theta}(u_j | u_{0 : j-1}) \\
-p_{\theta}(U_i) = p_{\theta}(u_1, u_2, \dots, u_j, \dots, u_{n_i})$$
-
-chain rule로 표현하면 다음과 같다.
-
-$$
-P(x_{1:n}) = P(x_1, \dots, x_n)
-$$
-$$
-= P(x_n | x_1, \dots, x_{n-1}) \cdots P(x_2 | x_1) P(x_1)
-$$
-$$
-= \prod_{i=1}^{n} P(x_i | x_{<i})
-$$
-$$
-\log P(x_{1:n}) = \sum_{i=1}^{N} \log P(x_i | x_{<i})
-$$
-
-예를 들어 다음 문장은 다음과 같이 chain rule로 만들 수 있다.
-
-$$
-P(\text{<EOS>}, \text{I, love, to, play, <EOS>}) = P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{<BOS>}, \text{I, love, to, play})\\
-
-= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{<BOS>}, \text{I, love, to})\\
-
-= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{<BOS>}, \text{I, love})\\
-
-= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{love} | \text{<BOS>}, \text{I})P(\text{<BOS>}, \text{I})\\
-
-= P(\text{<EOS>} | \text{<BOS>}, \text{I, love, to, play})P(\text{play} | \text{<BOS>}, \text{I, love, to})P(\text{to} | \text{<BOS>}, \text{I, love})P(\text{love} | \text{<BOS>}, \text{I})P(\text{I} | \text{<BOS>})P(\text{<BOS>})
-$$
-
-
-다음을 최대화하도록 학습
-
-$$
-p_{\theta}(\mathcal{U}) = \prod_{i=1}^{N} p_{\theta}(U_i)
-$$
-
-
-목적식은 다음과 같이 구성된다.확률 분포에 대해 비교를 하게 되므로 CE loss가 기본으로 쓰임.
-
-$$
-\mathcal{D} = \{x^i\}_{i=1}^N \\
-
-\hat{\theta} = \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \log P(x_{1:n}^i; \theta) \\
-
-= \underset{\theta \in \Theta}{\operatorname{argmax}} \sum_{i=1}^{N} \sum_{j=1}^{n} \log P(x_j^i | x_{<j}^i; \theta) \\
-
-\text{where } x_{1:n} = \{x_1, \dots, x_n\}.
-$$
-
-이렇게 포뮬레이션하는게 말이 되는 이유는 사람도 머릿속에 언어모델이 비슷하게 동작할 것이라고 생각되기 때문. 단어와 단어 사이의 확률이 우리도 모르게 학습되어 있음. 대화를 하다가 정확하게 듣지 못하여도 대화에 지장이 없음. 음성 인식과 달리 잘 동작하는건 단어와 단어 사이의 출현 빈도(확률)에 대한 이해가 있기 때문.
-
-
-- tokenizer는 input string을 sequence of tokens ($u_j \in \mathcal{V})$으로 만든다
-- 적절히 tokenization을 해야한다 ⇒ 작은 차이가 큰 영향을 줄 수 있어서
-
-
-다른 대안이 있을까?
-
-- large concept model
+large concept model
 
 
 # LLM 파이프라인
+
+![Image](https://huggingface.co/datasets/huggingface-course/documentation-images/resolve/main/en/chapter2/full_nlp_pipeline-dark.svg)
 
 ## Preprocessing
 
@@ -105,6 +113,10 @@ $$
 
 
 ## Tokenization
+
+- tokenizer는 input string을 sequence of tokens ($u_j \in \mathcal{V})$으로 만든다
+- 적절히 tokenization을 해야한다 ⇒ 작은 차이가 큰 영향을 줄 수 있어서
+
 
 모달리티마다 최소 단위가 설정되어야 함. 이미지의 경우 픽셀인데 자연어는 토큰이라고 할 수 있음. 언어 모델에 성능을 미치는 부분임. BERT 등 논문을 보면 vocab size와 tokenizing에 따라 성능이 바뀐다고 함. 언어 뿐만 아니라 구두점, 특수 기호 등도 포함됨.
 
@@ -414,7 +426,7 @@ model-based quality filtering (fast classifiers like Meta AI's fastText and RoBE
 
 
 
-# LLM 연구 (Seminal LLM)
+# LLM 연구 (Seminal Works)
 ![Image](https://github.com/Mooler0410/LLMsPracticalGuide/blob/main/imgs/tree.jpg?raw=true)
 
 
@@ -587,9 +599,6 @@ Post-training에서 모델은 항상 답변을 내도록 학습됨. 질문이 �
 
 
 # LLM 생태계
-
-
-
 
 # 자료
 [나만 보는 LLM](https://wikidocs.net/book/14997)
