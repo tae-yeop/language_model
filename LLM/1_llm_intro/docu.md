@@ -85,6 +85,33 @@ $$\text{where } x_{1:n} = \{x_1, \dots, x_n\}$$
 앞에선 Autogressive 방식
 부분 문장을 보고 다른 부분을 예측하는게 핵심
 
+### 1. Autoregressive (AR) — GPT, LLaMA 등
+
+$$
+\boxed{\; \mathcal{L}_{\text{AR}}
+  = -\!\sum_{t=1}^{T}\log P_\theta(x_t\mid x_{<t}) \;}
+$$
+
+단어를 **왼쪽→오른쪽 한 토큰씩** 조건부 모형화. *Perplexity*가 직접적인 성능 지표.
+
+
+그런데 다른 방식으로도 학습을 고려해볼 수 잇다. 
+
+
+## 2. Masked Language Modeling (MLM) — BERT 계열
+
+$$
+\boxed{\;
+\mathcal{L}_{\text{MLM}}
+  = -\!\sum_{i\in M}\log P_\theta(x_i\mid x_{\setminus M})
+\;}
+$$
+
+* $M$: 무작위로 가린 토큰 집합
+* 양방향 Transformer가 **좌·우 문맥 모두** 활용
+* 손실은 선택된 토큰만 집계 ➜ \*15 %\*만 실제로 경사에 기여([huggingface.co][1])
+
+
 ```
 When I hear rain on my roof, I _______ in my kitchen.
 ```
@@ -100,7 +127,135 @@ relax 2.2%
 
 중간 단어, 문장이 아니라 다음 단어(Next Token)을 예측하는 경우 텍스트 생성, 챗봇 등 다양한 태스크에 활용 가능.
 
+### 3. Permutation Language Modeling (PLM) — XLNet
+
+$$
+\boxed{\;
+\mathcal{L}_{\text{PLM}}
+  = -\,\mathbb{E}_{\pi\sim\text{Perm}(T)}
+  \Bigl[\sum_{t=1}^{T}\log P_\theta\bigl(x_{\pi_t}\mid x_{\pi_{<t}}\bigr)\Bigr]
+\;}
+$$
+
+* $\pi$: 길이 $T$ 토큰 위치의 **랜덤 순열**
+* 모든 순서를 평균내어 “AR·MLM 장점 결합”을 시도([atharvyeoelekar.blog][2], [atharvyeoelekar.blog][3])
+
+### 4. Denoising / Span-Corruption Autoencoder — BART·T5
+
+1. **오염 함수** $f$: 토큰 삭제·스팬 마스킹·순서 뒤섞기
+2. **목표**
+
+   $$
+     \boxed{\;
+     \mathcal{L}_{\text{DAE}}
+       = -\!\log P_\theta\!\bigl(x_{1:T}\mid \tilde x=f(x)\bigr)
+     \;}
+   $$
+
+   \= Seq2Seq 형태의 **전체 문장 복원** 손실.
+
+* *Span* 마스킹(T5)·*Sentence permutation*·삽입/삭제(BART) 등이 $f$에 해당([aclanthology.org][4], [medium.com][5])
+
+### 5. Diffusion Language Model (Diffusion-LM, EDLM 등)
+
+### 전방 과정
+
+연속(임베딩) 또는 이산(토큰) 공간에서
+
+$$
+q_t(x^{(t)}\mid x^{(t-1)})\;\;\text{로 노이즈 주입}
+$$
+
+### 역방향 모델
+
+$$
+\boxed{\;
+\mathcal{L}_{\text{Diff}}
+  = -\sum_{t=1}^{T_\text{steps}}
+    \mathbb{E}_{q}\!\bigl[\log P_\theta(x^{(t-1)}\mid x^{(t)},t)\bigr]
+\;}
+$$
+
+* **ELBO 가중 적분** 형태로 최대 우도와 연결됨([arxiv.org][6])
+* 최근 연구는 **에너지 함수 $E_\theta(x,t)$** 로 단계를 통합(EDLM)하여 우도 공백을 축소([openreview.net][7], [openreview.net][8])
+
+## 6. Flow-based LM — FlowSeq, Language Flows
+
+$$
+\boxed{\;
+\mathcal{L}_{\text{Flow}}
+  = -\!\log P_\theta(x)
+  = -\!\bigl[\log P_z(z) + \log\!\det\bigl|\tfrac{\partial f_\theta^{-1}}{\partial x}\bigr|\bigr]
+\;}
+$$
+
+* $f_\theta$: **가역 변환** $z\!\leftrightarrow\!x$
+* 정밀한 **정규화 상수 계산이 가능**해 “정확한 NLL”을 학습 → 병렬 생성 가능([aclanthology.org][9], [aclanthology.org][10])
+
+## 7. Energy-Based LM (EBM) — EDLM, Contrastive EB-LM
+
+$$
+P_\theta(x) \;=\;\frac{\exp(-E_\theta(x))}{Z(\theta)},\qquad
+\boxed{\;
+\mathcal{L}_{\text{EBM}}
+  = -\log P_\theta(x)
+  = E_\theta(x)+\log Z(\theta)
+\;}
+$$
+
+* $Z(\theta)$ (정규화 상수) 추정이 어려워 **NCE·MCMC** 등 근사법 활용
+* 2025년형 **Energy-Diffusion LM**은 각 diffusion 단계에서 EBM을 사용해 추론 속도·품질 개선
+
+
+
 large concept model
+
+
+## 언어 데이터 특성
+
+1. 순서 의존성
+
+![Image](https://oopy.lazyrockets.com/api/v2/notion/image?src=https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F134ab235-80b2-4fed-974c-cd0f79aa7904%2FUntitled.png&blockId=0f049850-ca51-4806-8583-59638dcfd031)
+
+단어 하나의 순서가 바뀌면 뜻이 전혀 달라지게 된다. 따라서 단어의 위치 정보가 반영되어 처리되어야 함.
+
+2. 다의어
+
+bank는 강변이라는 뜻도 있고 금융이라는 뜻도 있다. 이는 주변 단어에 따라 의미를 파악해야한다. 따라서 주변 정보를 고려할 수 있도록 해야한다.
+
+3. 장거리 의존성
+
+멀어 떨어진 단어가 연관된다는 것을 반영해야함.
+
+`The book I told you about yesterday was fascinating.`
+
+4. 위계정 구문
+
+`the smart student solved the problem`을 위계 트리로 나타내면 다음과 같다 : `	<sub>NP</sub>[ the smart student ] <sub>VP</sub>[ solved <sub>NP</sub>[ the problem ] ]`
+
+명사구로 합쳐지고 뒤에서 동사구의 주어로 들어가는 식으로 문법적으로 수식하는 중첩된 구조를 가짐.
+
+5. 형태·어형 변화
+
+시제나 어미가 변화하는 경우가 있는데 이를 일일이 별도로 처리하지 말도록 하자. 
+
+
+이런 데이터의 특성을 고려한 inductive bias를 다음과 같다.
+
+
+1. 토큰화, 서브워드 : 형태 변형에 대응해서 토큰을 최소 단위로 분해
+
+2. 위치 인코딩 : 순서 의존성을 처리하도록 함
+
+3. 다중 헤드 SA : 다의어, 장거리, 위계 의존 처리르 위해 사용. 각 헤드가 '의미', '문법', '거리' 등 서로 다른 유형을 담당
+
+4. 깊은 스택 & 잔차+LayerNorm : 단계별 추상화 (단어→구문→의미)를 위해 깊게 하다보니 정보 소실 없도록 하는 기법 요구
+
+5. 학습 목표 : 언어의 시간 의존성에 대응하여 CLM을 하거나 위계, 전역 의미를 위한 MLM 등을 수행
+
+다른 도메인과 비교하기
+
+
 
 
 # LLM 파이프라인
