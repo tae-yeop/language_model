@@ -1,3 +1,4 @@
+*.csv
 *.mp4
 *.onnx
 *.pt
@@ -6,6 +7,8 @@
 *.out
 *.safetensors
 *.ckpt
+*.zip
+*.txt
 trainable_params.txt
 logs
 wandb
@@ -18,6 +21,9 @@ output
 output*
 out
 examples
+trainer_output
+merged_model
+pokemon
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -9,7 +9,7 @@
 #SBATCH --output=notebook.out
 #SBATCH --comment="LLM 테스트"
 
-export CONTAINER_IMAGE_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/sqsh/llm_27_v2.sqsh'
+export CONTAINER_IMAGE_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/sqsh/llm_27_v3.sqsh'
 export CACHE_FOR_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/cache'
 export MY_WORKSPACE_PATH='/purestorage/AILAB/AI_1/tyk/3_CUProjects/language_model'
 
@@ -26,13 +26,3 @@ srun --container-image $CONTAINER_IMAGE_PATH \
     jupyter notebook --ip 0.0.0.0 --port=${PORT} --ServerApp.allow_origin='*' --ServerApp.trust_xheaders=True  --ServerApp.disable_check_xsrf=True
 
 # srun jupyter notebook --ip 0.0.0.0 --port=${PORT} --ServerApp.allow_origin='*' --ServerApp.trust_xheaders=True  --ServerApp.disable_check_xsrf=True
-
-
-
-# srun jupyter lab --no-browser --ip=0.0.0.0 --port=${PORT} \
-#     --NotebookApp.notebook_dir=/purestorage
-    #    --ServerApp.allow_origin='*' \
-    #    --ServerApp.trust_xheaders=True \
-    #    --ServerApp.disable_check_xsrf=True \
-
-# --NotebookApp.allow_origin='*' --NotebookApp.trust_xheaders=True --NotebookApp.disable_check_xsrf=True

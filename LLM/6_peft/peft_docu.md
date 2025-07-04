@@ -3,9 +3,9 @@
 
 
 
-QLoRA
+Quantized Low-Rank Adaptation (QLoRA)
 
-파인튜닝할 때 두루두루 적용할 수 있다
+파인튜닝할 때 두루두루 적용할 수 있다. 
 
 
 BitsAndBytesConfig를 써서 4비트로 로드하고 LoRA 어댑터만 학습하기

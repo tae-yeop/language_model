@@ -211,7 +211,7 @@ if __name__ == "__main__":
         print(response[0].split("### Response:")[1])
 
         # Saving the model and tokenizer
-        new_model_local = "Gemma-3-4B-Fin-QA-Reasoning"
+        new_model_local = "out"
         model.save_pretrained(new_model_local)
         tokenizer.save_pretrianed(new_model_local)
 

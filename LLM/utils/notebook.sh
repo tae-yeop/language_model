@@ -9,7 +9,7 @@
 #SBATCH --output=notebook.out
 #SBATCH --comment="LLM 테스트"
 
-export CONTAINER_IMAGE_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/sqsh/llm_27_v2.sqsh'
+export CONTAINER_IMAGE_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/sqsh/llm_27_v3.sqsh'
 export CACHE_FOR_PATH='/purestorage/AILAB/AI_1/tyk/0_Software/cache'
 export MY_WORKSPACE_PATH='/purestorage/AILAB/AI_1/tyk/3_CUProjects/language_model'
 

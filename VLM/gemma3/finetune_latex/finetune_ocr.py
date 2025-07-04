@@ -13,6 +13,9 @@ instruction = 'Convert the equation images to LaTeX equations.'
 
 
 def convert_to_conversation(sample):
+    """
+    학습을 위한 message dict 형태로. message 하나에 list 하나.
+    """
     conversation = [
         # User Prompt : 유저의 질문
         { 'role': 'user',
@@ -32,31 +35,20 @@ def convert_to_conversation(sample):
 
 def process_vision_info(messages: list[dict]) -> list[Image.Image]:
     """
-    데이터셋 이미지를 RGB 포맷으로 변경
+    데이터셋 이미지를 gemma3에서 처리할 수 있게 RGB 포맷으로 변경
     """
     image_inputs = []
-    for msg in messages:
+    for msg in messages: # list of dict를 순회
         content = msg.get("content", [])
         if not isinstance(content, list):
             content = [content]
  
-        for element in content:
+        for element in content: # 한 dict (msg)안에서 다시 content를 살펴서 image가 있으면 이를 RGB로 변환해서 append시킴
             if isinstance(element, dict) and ("image" in element or element.get("type") == "image"):
                 image = element["image"]
                 image_inputs.append(image.convert("RGB"))
     return image_inputs
 
-
-def inspect_data():
-
-    # Access the first sample in the dataset
-    train_image = dataset_train[0]['image'] # PIL.PngImagePlugin.PngImageFile
-
-    # Print the corresponding LaTeX text for the first image
-    print(dataset_train[0]['text'])
-
-    print(type(train_image))
-    train_image.save('inspect.png')
 
 if __name__ == "__main__":
     dataset_train = load_dataset('unsloth/LaTeX_OCR', split='train[:3000]')
@@ -71,13 +63,6 @@ if __name__ == "__main__":
 
     print(type(train_dataset)) # list
     print(train_dataset[0])
-    
-    # 이게 더 느림, 대신 캐싱을 함
-    # 그리고 뭔가 다름 remove_columns 때문? -> 걍 다름
-    # train_dataset2 = dataset_train.map(convert_to_conversation, remove_columns=dataset_train.column_names)
-
-    # print(type(train_dataset2)) # datasets.arrow_dataset.Dataset
-    # print(train_dataset2.take(1)['messages'])
 
 
     def collate_fn(examples):
@@ -198,7 +183,6 @@ if __name__ == "__main__":
     del model
     del trainer
     torch.cuda.empty_cache()
-
 
 
     model = AutoModelForImageTextToText.from_pretrained(
