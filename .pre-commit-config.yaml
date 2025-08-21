@@ -1,0 +1,5 @@
+repos:
+-   repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2 # 이 버전은 최신 버전으로 바꿔도 좋습니다
+    hooks:
+    -   id: gitleaks

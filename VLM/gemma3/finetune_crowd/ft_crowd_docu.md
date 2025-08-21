@@ -1,1 +1,0 @@
-SCUT_HEAD_Part_A.zip 데이터 사용
